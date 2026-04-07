@@ -1,0 +1,205 @@
+﻿<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Caro GOD AI</title>
+<style>
+  body { font-family: Arial; text-align: center; }
+  canvas { border: 1px solid black; cursor: pointer; }
+</style>
+</head>
+<body>
+<h2>Caro GOD AI ☠️ (Gần như không thể thắng)</h2>
+<p>Bạn = X | AI = O</p>
+<canvas id="board" width="600" height="600"></canvas>
+
+<script>
+const canvas = document.getElementById("board");
+const ctx = canvas.getContext("2d");
+const size = 15;
+const cell = canvas.width / size;
+
+let board = Array.from({length: size}, () => Array(size).fill(null));
+let gameOver = false;
+
+function drawBoard() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  for (let i = 0; i <= size; i++) {
+    ctx.beginPath();
+    ctx.moveTo(i * cell, 0);
+    ctx.lineTo(i * cell, canvas.height);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(0, i * cell);
+    ctx.lineTo(canvas.width, i * cell);
+    ctx.stroke();
+  }
+
+  ctx.font = "20px Arial";
+  for (let r = 0; r < size; r++) {
+    for (let c = 0; c < size; c++) {
+      if (board[r][c]) {
+        ctx.fillText(board[r][c], c * cell + cell/3, r * cell + cell/1.5);
+      }
+    }
+  }
+}
+
+function checkWin(x,y,p){
+  const d=[[1,0],[0,1],[1,1],[1,-1]];
+  for(let [dx,dy] of d){
+    let c=1;
+    for(let i=1;i<5;i++) if(board[y+dy*i]?.[x+dx*i]===p) c++; else break;
+    for(let i=1;i<5;i++) if(board[y-dy*i]?.[x-dx*i]===p) c++; else break;
+    if(c>=5) return true;
+  }
+  return false;
+}
+
+function getMoves(){
+  let moves=[];
+  for(let y=0;y<size;y++){
+    for(let x=0;x<size;x++){
+      if(!board[y][x]){
+        // chỉ xét ô gần quân đã đánh để tối ưu
+        for(let dy=-1;dy<=1;dy++){
+          for(let dx=-1;dx<=1;dx++){
+            if(board[y+dy]?.[x+dx]){
+              moves.push([x,y]);
+              dx=2;dy=2;
+            }
+          }
+        }
+      }
+    }
+  }
+  return moves.length?moves:[[7,7]];
+}
+
+function evaluateBoard(p){
+  let score=0;
+  const d=[[1,0],[0,1],[1,1],[1,-1]];
+
+  for(let y=0;y<size;y++){
+    for(let x=0;x<size;x++){
+      if(board[y][x]===p){
+        for(let [dx,dy] of d){
+          let count=1;
+          let open=0;
+
+          for(let i=1;i<5;i++){
+            if(board[y+dy*i]?.[x+dx*i]===p) count++;
+            else { if(!board[y+dy*i]?.[x+dx*i]) open++; break; }
+          }
+
+          for(let i=1;i<5;i++){
+            if(board[y-dy*i]?.[x-dx*i]===p) count++;
+            else { if(!board[y-dy*i]?.[x-dx*i]) open++; break; }
+          }
+
+          if(count>=5) score+=100000;
+          else if(count==4 && open==2) score+=10000;
+          else if(count==4) score+=5000;
+          else if(count==3 && open==2) score+=1000;
+          else if(count==3) score+=200;
+          else if(count==2) score+=50;
+        }
+      }
+    }
+  }
+  return score;
+}
+
+function minimax(depth, isMax, alpha, beta){
+  if(depth==0) return evaluateBoard("O") - evaluateBoard("X");
+
+  let moves=getMoves();
+
+  if(isMax){
+    let maxEval=-Infinity;
+    for(let [x,y] of moves){
+      board[y][x]="O";
+      let evalScore;
+      if(checkWin(x,y,"O")) evalScore=999999;
+      else evalScore=minimax(depth-1,false,alpha,beta);
+      board[y][x]=null;
+
+      maxEval=Math.max(maxEval,evalScore);
+      alpha=Math.max(alpha,evalScore);
+      if(beta<=alpha) break;
+    }
+    return maxEval;
+  } else {
+    let minEval=Infinity;
+    for(let [x,y] of moves){
+      board[y][x]="X";
+      let evalScore;
+      if(checkWin(x,y,"X")) evalScore=-999999;
+      else evalScore=minimax(depth-1,true,alpha,beta);
+      board[y][x]=null;
+
+      minEval=Math.min(minEval,evalScore);
+      beta=Math.min(beta,evalScore);
+      if(beta<=alpha) break;
+    }
+    return minEval;
+  }
+}
+
+function aiMove(){
+  let bestScore=-Infinity;
+  let bestMove=null;
+
+  let moves=getMoves();
+
+  for(let [x,y] of moves){
+    board[y][x]="O";
+    let score=minimax(2,false,-Infinity,Infinity);
+    board[y][x]=null;
+
+    if(score>bestScore){
+      bestScore=score;
+      bestMove=[x,y];
+    }
+  }
+
+  if(bestMove){
+    let [x,y]=bestMove;
+    board[y][x]="O";
+
+    if(checkWin(x,y,"O")){
+      alert("AI thắng ☠️");
+      gameOver=true;
+    }
+    drawBoard();
+  }
+}
+
+canvas.onclick = e => {
+  if(gameOver) return;
+
+  const r = canvas.getBoundingClientRect();
+  const x = Math.floor((e.clientX-r.left)/cell);
+  const y = Math.floor((e.clientY-r.top)/cell);
+
+  if(!board[y][x]){
+    board[y][x]="X";
+
+    if(checkWin(x,y,"X")){
+      alert("Bạn thắng (??? impossible)");
+      gameOver=true;
+    }
+
+    drawBoard();
+
+    if(!gameOver){
+      setTimeout(aiMove,100);
+    }
+  }
+};
+
+drawBoard();
+</script>
+</body>
+</html>
